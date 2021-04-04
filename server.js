@@ -1,40 +1,41 @@
 const express = require("express");
-const session = require("express-session");
-const MongoStore = require("connect-mongo")(session);
 const mongoose = require("mongoose");
+const bodyParser = require("body-parser");
+const passport = require("passport");
 
-const passport = require("./passport/setup");
-const auth = require("./routes/auth");
+const users = require("./routes/api/users");
 
 const app = express();
-const PORT = 5000;
-const MONGO_URI = "mongodb://127.0.0.1:27017/userdb";
 
-mongoose
-    .connect(MONGO_URI, { useNewUrlParser: true })
-    .then(console.log(`MongoDB connected ${MONGO_URI}`))
-    .catch(err => console.log(err));
-
-// Bodyparser middleware, extended false does not allow nested payloads
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
-
-// Express Session
+// Bodyparser middleware
 app.use(
-    session({
-        secret: "very secret this is",
-        resave: false,
-        saveUninitialized: true,
-        store: new MongoStore({ mongooseConnection: mongoose.connection })
-    })
+  bodyParser.urlencoded({
+    extended: false
+  })
 );
+app.use(bodyParser.json());
+
+// DB Config
+const db = require("./config/keys").mongoURI;
+
+// Connect to MongoDB
+mongoose
+  .connect(
+    db,
+    { useNewUrlParser: true, useUnifiedTopology: true }
+  )
+  .then(() => console.log("MongoDB successfully connected"))
+  .catch(err => console.log(err));
 
 // Passport middleware
 app.use(passport.initialize());
-app.use(passport.session());
+
+// Passport config
+require("./config/passport")(passport);
 
 // Routes
-app.use("/api/auth", auth);
-app.get("/", (req, res) => res.send("Good sunshine!"));
+app.use("/api/users", users);
 
-app.listen(PORT, () => console.log(`Backend listening on port ${PORT}!`));
+const port = process.env.PORT || 5000;
+
+app.listen(port, () => console.log(`Server up and running on port ${port} !`));
